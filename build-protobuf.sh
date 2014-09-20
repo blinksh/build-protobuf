@@ -2,20 +2,9 @@
 
 echo "$(tput setaf 2)"
 echo "###################################################################"
-echo "# Fetch Google Protobuf from the GitHub repo.  We are going to"
-echo "# build the master branch, so this is bleeding edge stuff! ;-)"
+echo "# Preparing to build Google Protobuf"
 echo "###################################################################"
 echo "$(tput sgr0)"
-
-PROTOBUF_SRC_DIR=/tmp/protobuf
-(
-    if [ -d ${PROTOBUF_SRC_DIR} ]
-    then
-        rm -rf ${PROTOBUF_SRC_DIR}
-    fi
-    cd `dirname ${PROTOBUF_SRC_DIR}`
-    git clone https://github.com/google/protobuf.git
-)
 
 # The results will be stored relative to the location
 # where you stored this script, **not** relative to
@@ -27,13 +16,15 @@ then
 fi
 mkdir -p "${PREFIX}/platform"
 
-###################################################################
-# Build variables. The stuff in this section controls the outcome
-# of the build process.  It selects the iOS SDK version based
-# on how xcrun is currently configured.
-###################################################################
+# A "YES" value will build the latest code from GitHub on the master branch.
+# A "NO" value will use the 2.6.0 tarball downloaded from googlecode.com.
+USE_GIT_MASTER=NO
 
-DARWIN=darwin13.4.0
+PROTOBUF_GIT_URL=https://github.com/google/protobuf.git
+PROTOBUF_GIT_DIRNAME=protobuf
+PROTOBUF_VERSION=2.6.0
+PROTOBUF_RELEASE_URL=https://protobuf.googlecode.com/svn/rc/protobuf-${PROTOBUF_VERSION}.tar.gz
+PROTOBUF_RELEASE_DIRNAME=protobuf-${PROTOBUF_VERSION}
 
 BUILD_MACOSX_X86_64=YES
 
@@ -43,6 +34,10 @@ BUILD_X86_64_IOSSIM=YES
 BUILD_IOS_ARMV7=YES
 BUILD_IOS_ARMV7S=YES
 BUILD_IOS_ARM64=YES
+
+PROTOBUF_SRC_DIR=/tmp/protobuf
+
+DARWIN=darwin13.4.0
 
 XCODEDIR=`xcode-select --print-path`
 IOS_SDK_VERSION=`xcrun --sdk iphoneos --show-sdk-version`
@@ -57,14 +52,94 @@ IPHONEOS_SYSROOT=`xcrun --sdk iphoneos --show-sdk-path`
 IPHONESIMULATOR_PLATFORM=`xcrun --sdk iphonesimulator --show-sdk-platform-path`
 IPHONESIMULATOR_SYSROOT=`xcrun --sdk iphonesimulator --show-sdk-path`
 
-CC=clang
-CFLAGS="--verbose -DNDEBUG -g -O0 -pipe -fPIC -fcxx-exceptions"
+# Uncomment if you want to see more information about each invocation
+# of clang as the builds proceed.
+# CLANG_VERBOSE="--verbose"
 
+CC=clang
 CXX=clang
-CXXFLAGS="--verbose ${CFLAGS} -std=c++11 -stdlib=libc++"
+
+CFLAGS="${CLANG_VERBOSE} -DNDEBUG -g -O0 -pipe -fPIC -fcxx-exceptions"
+CXXFLAGS="${CLANG_VERBOSE} ${CFLAGS} -std=c++11 -stdlib=libc++"
 
 LDFLAGS="-stdlib=libc++"
 LIBS="-lc++ -lc++abi"
+
+echo "PREFIX ..................... ${PREFIX}"
+echo "USE_GIT_MASTER ............. ${USE_GIT_MASTER}"
+echo "PROTOBUF_GIT_URL ........... ${PROTOBUF_GIT_URL}"
+echo "PROTOBUF_GIT_DIRNAME ....... ${PROTOBUF_GIT_DIRNAME}"
+echo "PROTOBUF_VERSION ........... ${PROTOBUF_VERSION}"
+echo "PROTOBUF_RELEASE_URL ....... ${PROTOBUF_RELEASE_URL}"
+echo "PROTOBUF_RELEASE_DIRNAME ... ${PROTOBUF_RELEASE_DIRNAME}"
+echo "BUILD_MACOSX_X86_64 ........ ${BUILD_MACOSX_X86_64}"
+echo "BUILD_I386_IOSSIM .......... ${BUILD_I386_IOSSIM}"
+echo "BUILD_X86_64_IOSSIM ........ ${BUILD_X86_64_IOSSIM}"
+echo "BUILD_IOS_ARMV7 ............ ${BUILD_IOS_ARMV7}"
+echo "BUILD_IOS_ARMV7S ........... ${BUILD_IOS_ARMV7S}"
+echo "BUILD_IOS_ARM64 ............ ${BUILD_IOS_ARM64}"
+echo "PROTOBUF_SRC_DIR ........... ${PROTOBUF_SRC_DIR}"
+echo "DARWIN ..................... ${DARWIN}"
+echo "XCODEDIR ................... ${XCODEDIR}"
+echo "IOS_SDK_VERSION ............ ${IOS_SDK_VERSION}"
+echo "MIN_SDK_VERSION ............ ${MIN_SDK_VERSION}"
+echo "MACOSX_PLATFORM ............ ${MACOSX_PLATFORM}"
+echo "MACOSX_SYSROOT ............. ${MACOSX_SYSROOT}"
+echo "IPHONEOS_PLATFORM .......... ${IPHONEOS_PLATFORM}"
+echo "IPHONEOS_SYSROOT ........... ${IPHONEOS_SYSROOT}"
+echo "IPHONESIMULATOR_PLATFORM ... ${IPHONESIMULATOR_PLATFORM}"
+echo "IPHONESIMULATOR_SYSROOT .... ${IPHONESIMULATOR_SYSROOT}"
+echo "CC ......................... ${CC}"
+echo "CFLAGS ..................... ${CFLAGS}"
+echo "CXX ........................ ${CXX}"
+echo "CXXFLAGS ................... ${CXXFLAGS}"
+echo "LDFLAGS .................... ${LDFLAGS}"
+echo "LIBS ....................... ${LIBS}"
+
+while true; do
+    read -p "Proceed with build? (y/n) " yn
+    case $yn in
+        [Yy]* ) break;;
+        [Nn]* ) exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
+echo "$(tput setaf 2)"
+echo "###################################################################"
+echo "# Fetch Google Protobuf"
+echo "###################################################################"
+echo "$(tput sgr0)"
+
+(
+    if [ -d ${PROTOBUF_SRC_DIR} ]
+    then
+        rm -rf ${PROTOBUF_SRC_DIR}
+    fi
+
+    cd `dirname ${PROTOBUF_SRC_DIR}`
+
+    if [ "${USE_GIT_MASTER}" == "YES" ]
+    then
+        git clone ${PROTOBUF_GIT_URL}
+    else
+        if [ -d ${PROTOBUF_RELEASE_DIRNAME} ]
+        then
+            rm -rf "${PROTOBUF_RELEASE_DIRNAME}"
+        fi
+        curl --location ${PROTOBUF_RELEASE_URL} --output ${PROTOBUF_RELEASE_DIRNAME}.tar.gz
+        tar xvf ${PROTOBUF_RELEASE_DIRNAME}.tar.gz
+        mv "${PROTOBUF_RELEASE_DIRNAME}" "${PROTOBUF_SRC_DIR}"
+        rm ${PROTOBUF_RELEASE_DIRNAME}.tar.gz
+
+        # Remove the version of Google Test included with the release.
+        # We will replace it with version 1.7.0 in a later step.
+        if [ -d "${PROTOBUF_SRC_DIR}/gtest" ]
+        then
+            rm -r "${PROTOBUF_SRC_DIR}/gtest"
+        fi
+    fi
+)
 
 echo "$(tput setaf 2)"
 echo "###################################################################"
@@ -123,6 +198,7 @@ then
         make distclean
         ./configure --disable-shared --prefix=${PREFIX} --exec-prefix=${PREFIX}/platform/x86_64-mac "CC=${CC}" "CFLAGS=${CFLAGS} -arch x86_64" "CXX=${CXX}" "CXXFLAGS=${CXXFLAGS} -arch x86_64" "LDFLAGS=${LDFLAGS}" "LIBS=${LIBS}"
         make
+        make check
         make install
     )
 fi
@@ -221,7 +297,7 @@ fi
 
 echo "$(tput setaf 2)"
 echo "###################################################################"
-echo "# Create Universal Libraries"
+echo "# Create Universal Libraries and Finalize the packaging"
 echo "###################################################################"
 echo "$(tput sgr0)"
 
@@ -232,12 +308,6 @@ echo "$(tput sgr0)"
     lipo x86_64-sim/lib/libprotobuf-lite.a i386-sim/lib/libprotobuf-lite.a arm64-ios/lib/libprotobuf-lite.a armv7s-ios/lib/libprotobuf-lite.a armv7-ios/lib/libprotobuf-lite.a -create -output universal/libprotobuf-lite.a
 )
 
-echo "$(tput setaf 2)"
-echo "###################################################################"
-echo "# Finalize the packaging"
-echo "###################################################################"
-echo "$(tput setaf 2)"
-
 (
     cd ${PREFIX}
     mkdir bin
@@ -246,7 +316,23 @@ echo "$(tput setaf 2)"
     cp -r platform/x86_64-mac/lib/* lib
     cp -r platform/universal/* lib
     rm -rf platform
+    lipo -info lib/libprotobuf.a
+    lipo -info lib/libprotobuf-lite.a
 )
+
+if [ "${USE_GIT_MASTER}" == "YES" ]
+then
+    if [ -d "${PREFIX}-master" ]
+    then
+        rm -rf "${PREFIX}-master"
+    fi
+    mv "${PREFIX}" "${PREFIX}-master"
+else
+    if [ -d "${PREFIX}-${PROTOBUF_VERSION}"
+        rm -rf "${PREFIX}-${PROTOBUF_VERSION}"
+    fi
+    mv "${PREFIX}" "${PREFIX}-${PROTOBUF_VERSION}"
+fi
 
 echo Done!
 
