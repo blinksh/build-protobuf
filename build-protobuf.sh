@@ -328,7 +328,8 @@ then
     fi
     mv "${PREFIX}" "${PREFIX}-master"
 else
-    if [ -d "${PREFIX}-${PROTOBUF_VERSION}"
+    if [ -d "${PREFIX}-${PROTOBUF_VERSION}" ]
+    then
         rm -rf "${PREFIX}-${PROTOBUF_VERSION}"
     fi
     mv "${PREFIX}" "${PREFIX}-${PROTOBUF_VERSION}"
