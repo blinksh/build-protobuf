@@ -1,4 +1,4 @@
-# Google Protobuf 2.6.0 - Mac OS X and iOS Support
+# Google Protobuf - Mac OS X and iOS Support
 
 The script in this gist will help you buid the Google Protobuf library for use
 with Mac OS X and iOS.  Other methods (such as homebrew or direct compilation)
@@ -17,17 +17,25 @@ $ git clone https://gist.github.com/9487468ae3375d0db0cc.git build-protobuf
 # Performing the Build
 
 The script will automatically download the tarball from Google Code, so
-all you need to do is run the script.
+all you need to do is run the script. This will build the 2.6.1 version of
+Protobuf. The script understands a few command-line options too.
 
 ```
 $ cd build-protobuf
-$ ./build-protobuf-2.6.0.sh
+$ ./build-protobuf.sh
 ```
+
+Add `--interactive` to the above script if you would like the script to stop
+after each major operation. This makes it easier to inspect the output from
+the various steps for potential errors.
+
+Add `--master` if you would prefer to build from the master branch in the 
+Google Protobuf git repo.
 
 # Results
 
-Build results are found in a folder called `protobuf`.  This folder contains
-`bin`, `include` and `lib` folders.  
+Build results are found in a folder called `protobuf-{version}`, where `{version}` 
+will be either `2.6.1` or `master`.  This folder contains `bin`, `include` and `lib` folders.  
 
 # Integration with Xcode
 

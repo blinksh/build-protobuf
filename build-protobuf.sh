@@ -6,6 +6,52 @@ echo "# Preparing to build Google Protobuf"
 echo "###################################################################"
 echo "$(tput sgr0)"
 
+# The version of Protobuf to build.  It must match
+# one of the values found in the releases section of the github repo.
+# It can be set to "master" when building directly from the github repo.
+PROTOBUF_VERSION=2.6.1
+
+# Set to "YES" if you would like the build script to
+# pause after each major section.
+INTERACTIVE=NO
+
+# A "YES" value will build the latest code from GitHub on the master branch.
+# A "NO" value will use the 2.6.1 tarball downloaded from googlecode.com.
+USE_GIT_MASTER=NO
+
+while [[ $# > 0 ]]
+do
+  key="$1"
+
+  case $key in
+    -i|--interactive)
+      INTERACTIVE=YES
+      ;;
+    -m|--master)
+      USE_GIT_MASTER=YES
+      PROTOBUF_VERSION=master
+      ;;
+    *)
+      # unknown option
+      ;;
+  esac
+  shift # past argument or value
+done
+
+function conditionalPause {
+  if [ "${INTERACTIVE}"  == "YES" ]
+  then
+    while true; do
+        read -p "Proceed with build? (y/n) " yn
+        case $yn in
+            [Yy]* ) break;;
+            [Nn]* ) exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+  fi
+}
+
 # The results will be stored relative to the location
 # where you stored this script, **not** relative to
 # the location of the protobuf git repo.
@@ -16,14 +62,9 @@ then
 fi
 mkdir -p "${PREFIX}/platform"
 
-# A "YES" value will build the latest code from GitHub on the master branch.
-# A "NO" value will use the 2.6.0 tarball downloaded from googlecode.com.
-USE_GIT_MASTER=NO
-
 PROTOBUF_GIT_URL=https://github.com/google/protobuf.git
 PROTOBUF_GIT_DIRNAME=protobuf
-PROTOBUF_VERSION=2.6.0
-PROTOBUF_RELEASE_URL=https://protobuf.googlecode.com/svn/rc/protobuf-${PROTOBUF_VERSION}.tar.gz
+PROTOBUF_RELEASE_URL=https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-${PROTOBUF_VERSION}.tar.gz
 PROTOBUF_RELEASE_DIRNAME=protobuf-${PROTOBUF_VERSION}
 
 BUILD_MACOSX_X86_64=YES
@@ -37,11 +78,14 @@ BUILD_IOS_ARM64=YES
 
 PROTOBUF_SRC_DIR=/tmp/protobuf
 
-DARWIN=darwin13.4.0
+# 13.4.0 - Mavericks
+# 14.0.0 - Yosemite
+# 15.0.0 - El Capitan
+DARWIN=darwin14.0.0
 
 XCODEDIR=`xcode-select --print-path`
 IOS_SDK_VERSION=`xcrun --sdk iphoneos --show-sdk-version`
-MIN_SDK_VERSION=7.1
+MIN_SDK_VERSION=8.3
 
 MACOSX_PLATFORM=${XCODEDIR}/Platforms/MacOSX.platform
 MACOSX_SYSROOT=${MACOSX_PLATFORM}/Developer/MacOSX10.9.sdk
@@ -59,7 +103,9 @@ IPHONESIMULATOR_SYSROOT=`xcrun --sdk iphonesimulator --show-sdk-path`
 CC=clang
 CXX=clang
 
-CFLAGS="${CLANG_VERBOSE} -DNDEBUG -g -O0 -pipe -fPIC -fcxx-exceptions"
+SILENCED_WARNINGS="-Wno-unused-local-typedef -Wno-unused-function"
+
+CFLAGS="${CLANG_VERBOSE} ${SILENCED_WARNINGS} -DNDEBUG -g -O0 -pipe -fPIC -fcxx-exceptions"
 CXXFLAGS="${CLANG_VERBOSE} ${CFLAGS} -std=c++11 -stdlib=libc++"
 
 LDFLAGS="-stdlib=libc++"
@@ -96,14 +142,7 @@ echo "CXXFLAGS ................... ${CXXFLAGS}"
 echo "LDFLAGS .................... ${LDFLAGS}"
 echo "LIBS ....................... ${LIBS}"
 
-while true; do
-    read -p "Proceed with build? (y/n) " yn
-    case $yn in
-        [Yy]* ) break;;
-        [Nn]* ) exit;;
-        * ) echo "Please answer yes or no.";;
-    esac
-done
+conditionalPause
 
 echo "$(tput setaf 2)"
 echo "###################################################################"
@@ -141,42 +180,64 @@ echo "$(tput sgr0)"
     fi
 )
 
-echo "$(tput setaf 2)"
-echo "###################################################################"
-echo "# Fetch Google Test & Prepare the Configure Script"
-echo "#   (note: This section is lifted from autogen.sh)"
-echo "###################################################################"
-echo "$(tput sgr0)"
+conditionalPause
 
-(
+if [ "${PROTOBUF_VERSION}" == "master" ]
+then
+
+  echo "$(tput setaf 2)"
+  echo "###################################################################"
+  echo "# Run autogen.sh to prepare for build."
+  echo "###################################################################"
+  echo "$(tput sgr0)"
+
+  (
     cd ${PROTOBUF_SRC_DIR}
+    ( exec ./autogen.sh )
+  )
 
-    # Check that we are being run from the right directory.
-    if test ! -f src/google/protobuf/stubs/common.h
-    then
-        cat >&2 << __EOF__
+else
+
+  echo "$(tput setaf 2)"
+  echo "###################################################################"
+  echo "# Fetch Google Test & Prepare the Configure Script"
+  echo "#   (note: This section is lifted from autogen.sh)"
+  echo "###################################################################"
+  echo "$(tput sgr0)"
+
+  (
+      cd ${PROTOBUF_SRC_DIR}
+
+      # Check that we are being run from the right directory.
+      if test ! -f src/google/protobuf/stubs/common.h
+      then
+          cat >&2 << __EOF__
 Could not find source code.  Make sure you are running this script from the
 root of the distribution tree.
 __EOF__
-        exit 1
-    fi
+          exit 1
+      fi
 
-    # Check that gtest is present. Older versions of protobuf were stored in SVN
-    # and the gtest directory was setup as an SVN external.  Now, protobuf is
-    # stored in GitHub and the gtest directory is not included. The commands
-    # below will grab the latest version of gtest. Currently that is 1.7.0.
-    if test ! -e gtest
-    then
-        echo "Google Test not present.  Fetching gtest-1.7.0 from the web..."
-        curl --location http://googletest.googlecode.com/files/gtest-1.7.0.zip --output gtest-1.7.0.zip
-        unzip gtest-1.7.0.zip
-        rm gtest-1.7.0.zip
-        mv gtest-1.7.0 gtest
-    fi
+      # Check that gtest is present. Older versions of protobuf were stored in SVN
+      # and the gtest directory was setup as an SVN external.  Now, protobuf is
+      # stored in GitHub and the gtest directory is not included. The commands
+      # below will grab the latest version of gtest. Currently that is 1.7.0.
+      if test ! -e gtest
+      then
+          echo "Google Test not present.  Fetching gtest-1.7.0 from the web..."
+          curl --location https://github.com/google/googletest/archive/release-1.7.0.tar.gz --output gtest-1.7.0.tar.gz
+          tar xvf gtest-1.7.0.tar.gz
+          rm gtest-1.7.0.tar.gz
+          mv googletest-release-1.7.0 gtest
+      fi
 
-    autoreconf -f -i -Wall,no-obsolete
-    rm -rf autom4te.cache config.h.in~
-)
+      autoreconf -f -i -Wall,no-obsolete
+      rm -rf autom4te.cache config.h.in~
+  )
+
+fi
+
+conditionalPause
 
 ###################################################################
 # This section contains the build commands to create the native
@@ -205,6 +266,8 @@ fi
 
 PROTOC=${PREFIX}/platform/x86_64-mac/bin/protoc
 
+conditionalPause
+
 ###################################################################
 # This section contains the build commands for each of the 
 # architectures that will be included in the universal binaries.
@@ -227,6 +290,8 @@ then
     )
 fi
 
+conditionalPause
+
 echo "$(tput setaf 2)"
 echo "#############################"
 echo "# x86_64 for iPhone Simulator"
@@ -243,6 +308,8 @@ then
         make install
     )
 fi
+
+conditionalPause
 
 echo "$(tput setaf 2)"
 echo "##################"
@@ -261,6 +328,8 @@ then
     )
 fi
 
+conditionalPause
+
 echo "$(tput setaf 2)"
 echo "###################"
 echo "# armv7s for iPhone"
@@ -278,6 +347,8 @@ then
     )
 fi
 
+conditionalPause
+
 echo "$(tput setaf 2)"
 echo "##################"
 echo "# arm64 for iPhone"
@@ -294,6 +365,8 @@ then
         make install
     )
 fi
+
+conditionalPause
 
 echo "$(tput setaf 2)"
 echo "###################################################################"
