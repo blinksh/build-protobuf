@@ -105,10 +105,14 @@ CXX=clang
 
 SILENCED_WARNINGS="-Wno-unused-local-typedef -Wno-unused-function"
 
-CFLAGS="${CLANG_VERBOSE} ${SILENCED_WARNINGS} -DNDEBUG -g -O0 -pipe -fPIC -fcxx-exceptions"
-CXXFLAGS="${CLANG_VERBOSE} ${CFLAGS} -std=c++11 -stdlib=libc++"
+# NOTE: Google Protobuf does not currently build if you specify 'libstdc++'
+# instead of `libc++` here.
+STDLIB=libc++
 
-LDFLAGS="-stdlib=libc++"
+CFLAGS="${CLANG_VERBOSE} ${SILENCED_WARNINGS} -DNDEBUG -g -O0 -pipe -fPIC -fcxx-exceptions"
+CXXFLAGS="${CLANG_VERBOSE} ${CFLAGS} -std=c++11 -stdlib=${STDLIB}"
+
+LDFLAGS="-stdlib=${STDLIB}"
 LIBS="-lc++ -lc++abi"
 
 echo "PREFIX ..................... ${PREFIX}"
