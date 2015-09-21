@@ -151,7 +151,7 @@ echo "$(tput sgr0)"
 (
     cd ${PROTOBUF_SRC_DIR}
 
-    # Check that we're being run from the right directory.
+    # Check that we are being run from the right directory.
     if test ! -f src/google/protobuf/stubs/common.h
     then
         cat >&2 << __EOF__
