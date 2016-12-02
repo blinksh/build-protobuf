@@ -412,5 +412,7 @@ else
     mv "${PREFIX}" "${PREFIX}-${PROTOBUF_VERSION}"
 fi
 
+echo "${PROTOBUF_VERSION}" > VERSION
+
 echo Done!
 
