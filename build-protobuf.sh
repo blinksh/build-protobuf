@@ -85,7 +85,7 @@ DARWIN=darwin14.0.0
 
 XCODEDIR=`xcode-select --print-path`
 IOS_SDK_VERSION=`xcrun --sdk iphoneos --show-sdk-version`
-MIN_SDK_VERSION=8.3
+MIN_SDK_VERSION="8.3"
 
 MACOSX_PLATFORM=${XCODEDIR}/Platforms/MacOSX.platform
 MACOSX_SYSROOT=${MACOSX_PLATFORM}/Developer/MacOSX10.9.sdk
@@ -314,6 +314,8 @@ then
 fi
 
 conditionalPause
+
+export IPHONEOS_DEPLOYMENT_TARGET=$MIN_SDK_VERSION
 
 echo "$(tput setaf 2)"
 echo "##################"
